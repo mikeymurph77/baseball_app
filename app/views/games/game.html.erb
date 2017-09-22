@@ -1,0 +1,138 @@
+<style type="text/css">
+  .action-btn {
+    margin: 5px 0;
+    border: 1px solid #378297;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 5px;
+  }
+
+  .reset-game-btn {
+    margin: 25px 0 5px;
+    border: 1px solid #378297;
+    background-color: #b93333;
+    color: #fff;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 5px;
+  }
+</style>
+
+<div class="text-center">
+  <div class='scoreboard'>
+    <!-- Scoreboard -->
+    <%#= image_tag 'field/scoreboard-placeholder.png', alt: 'scoreboard', width: '300' %>
+
+    <div class="col-xs-6">
+      <strong>Away:</strong> <span id="display-away-score">0</span>
+    </div>
+    <div class="col-xs-6">
+      <strong>Home:</strong> <span id="display-home-score">0</span>
+    </div>
+    <div class="col-xs-6">
+      <strong>Inning:</strong> <span id="display-inning">▲ 1</span>
+
+      <strong>Outs:</strong> <span id="display-outs">0</span>
+    </div>
+  </div>
+
+  <div class='field-view' style="margin: 10px 0">
+    <div id="runners-on" style="display: none"><%= session[:last_play] %></div>
+    <h2 class="runs-scored-flash"></h2>
+    <!-- Field View: -->
+    <!-- <img id="field-view-img" src='/field/000-field-view.png' alt='scoreboard' width='200' /> -->
+    <%= image_tag 'field/000-field-view.png', id: 'field-view-img', alt: 'scoreboard', width: '200' %>
+  </div>
+
+  <div class="actions">
+    <div class='actions action-btn actions__single' id='single'>Single</div>
+    <div class='actions action-btn actions__double' id='double'>Double</div>
+    <div class='actions action-btn actions__triple' id='triple'>Triple</div>
+    <div class='actions action-btn actions__homerun' id='homerun'>Homerun</div>
+    <div class='actions action-btn actions__steal' id='steal'>Steal</div>
+    <div class='actions action-btn actions__out' id='out'>Out</div>
+  </div>
+
+  <div class='reset-game-btn' data-toggle="modal" data-target="#resetGameModal">New Game</div>
+
+  <div class="modal fade" id="resetGameModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="myModalLabel">Start a new game?</h4>
+        </div>
+        <div class="modal-body">
+          This game will be lost if you choose to start a new game.
+        </div>
+        <div class="modal-footer">
+          <div class="text-center">
+            <button type="button" class="btn btn-default reset-game-cancel" data-dismiss="modal">No</button>
+            <a href="/reset-game" class="btn btn-primary reset-game-confirm">Yes</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  $('.action-btn').click(function(){
+    var playAction = $(this).attr('id'),
+        runnersOn = $('.field-view').find('#runners-on').text();
+
+    $.ajax({
+      type: "POST",
+      beforeSend: function(xhr) {xhr.setRequestHeader('X-CSRF-Token', $('meta[name="csrf-token"]').attr('content'))},
+      url: '<%= play_path %>.json',
+      data: {
+        runners_on: runnersOn,
+        play: playAction
+      },
+      success: function(json){
+        var runsScored = json.last_play.runs_scored,
+            scoreboard = json.scoreboard,
+            atBat = json.at_bat;
+
+        // Render base runners
+        $('.field-view').find('#runners-on').text(json.last_play.new);
+        $('#field-view-img').attr('src', "/assets/field/" + json.last_play.new + "-field-view.png");
+
+        // Render Scores
+        if(runsScored > 0){
+          $('#display-away-score').text(scoreboard.away_score);
+          $('#display-home-score').text(scoreboard.home_score);
+
+          $('.runs-scored-flash').show();
+          $('.runs-scored-flash').text(runsScored + (runsScored == 1 ? " Run " : " Runs ") + "scored");
+          $('.runs-scored-flash').fadeOut(5000);
+        };
+
+        // Render Outs
+        if(atBat == 'home'){
+          var outs = scoreboard.home_outs % 3;
+        } else {
+          var outs = scoreboard.away_outs % 3;
+        };
+        if (3 - outs == 3){
+          var outCount = 0;
+        } else {
+          var outCount = 3 - outs;
+        }
+        $('#display-outs').text(outCount);
+
+        // Render Inning
+        if(atBat == 'home'){
+          var inning = '▼ ' + parseInt(scoreboard.inning);
+        } else {
+          var inning = '▲ ' + parseInt(scoreboard.inning);
+        };
+        $('#display-inning').text(inning)
+      },
+      error:function(e){
+        alert("There was an error.... Please try again.");
+      }
+    });
+  });
+</script>
